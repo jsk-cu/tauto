@@ -192,6 +192,8 @@ class ModelQuantization:
                 {nn.Linear, nn.LSTM, nn.GRU, nn.RNN},  # Quantize linear and RNN layers
                 dtype=self.dtype
             )
+            # Add is_quantized attribute
+            quantized_model.is_quantized = True
             logger.info("Model quantized with dynamic quantization")
             return quantized_model
         elif self.quantization_type == "static":
@@ -318,6 +320,9 @@ class ModelQuantization:
         size_bytes = 0
         
         for name, param in state_dict.items():
+            # Skip if param is not a tensor or doesn't have numel() method
+            if not hasattr(param, 'numel') or not hasattr(param, 'element_size'):
+                continue
             size_bytes += param.numel() * param.element_size()
         
         return size_bytes / (1024 ** 2)  # Convert to MB
@@ -497,15 +502,30 @@ class ModelPruning:
         # Apply pruning based on type
         if self.pruning_type == "global":
             # Global pruning applies to all parameters at once
-            pruning_method(
-                parameters=parameters_to_prune,
-                pruning_method=pruning_method,
-                amount=amount,
-            )
+            if isinstance(pruning_method, Callable):
+                pruning_method(
+                    parameters=parameters_to_prune,
+                    amount=amount,
+                )
+            else:
+                # Use prune.global_unstructured for other criteria
+                import torch.nn.utils.prune as prune
+                prune.global_unstructured(
+                    parameters=parameters_to_prune,
+                    pruning_method=getattr(prune, f"{self.criteria.capitalize()}Unstructured"),
+                    amount=amount,
+                )
         else:
             # Apply pruning to each parameter individually
             for module, param_name in parameters_to_prune:
                 if param_name == "weight" and hasattr(module, param_name):
+                    # Make sure we have the original parameter before pruning
+                    if not hasattr(module, f"{param_name}_orig"):
+                        # Create a forward pre-hook to ensure the mask exists
+                        import torch.nn.utils.prune as prune
+                        prune.identity(module, param_name)
+                    
+                    # Now apply the actual pruning
                     pruning_method(module, name=param_name, amount=amount)
         
         logger.info(f"Applied {self.pruning_type} pruning with {amount:.2%} sparsity")
@@ -713,6 +733,9 @@ class ModelPruning:
         size_bytes = 0
         
         for name, param in state_dict.items():
+            # Skip if param is not a tensor or doesn't have numel() method
+            if not hasattr(param, 'numel') or not hasattr(param, 'element_size'):
+                continue
             size_bytes += param.numel() * param.element_size()
         
         return size_bytes / (1024 ** 2)  # Convert to MB
@@ -911,6 +934,9 @@ def apply_inference_optimizations(
             criteria=criteria
         )
         
+        # Create a fresh copy before pruning
+        optimized_model = copy.deepcopy(model)
+        
         # Prune the model
         optimized_model = pruner.prune_model(
             optimized_model,
@@ -918,27 +944,29 @@ def apply_inference_optimizations(
             inplace=True
         )
         
-        # Make pruning permanent
+        # Make pruning permanent immediately to avoid issues with hooks
         for module in optimized_model.modules():
-            for name, param in list(module.named_parameters()):
-                if name.endswith("_orig"):
-                    orig_name = name[:-5]  # Remove _orig suffix
-                    if hasattr(module, f"{orig_name}_mask"):
-                        # Permanently apply the mask
-                        delattr(module, orig_name)
-                        module.register_parameter(orig_name, nn.Parameter(param * getattr(module, f"{orig_name}_mask")))
-                        delattr(module, f"{orig_name}_mask")
-                        delattr(module, name)
+            if isinstance(module, (nn.Conv2d, nn.Linear)):
+                if hasattr(module, 'weight_mask') and hasattr(module, 'weight_orig'):
+                    # Apply the mask and remove the pruning reparameterization
+                    prune.remove(module, 'weight')
         
         # Evaluate pruning impact
         if dataloader is not None:
-            prune_results = pruner.evaluate_pruning(
-                original_model=original_model,
-                pruned_model=optimized_model,
-                dataloader=dataloader,
-                device=device
-            )
-            results["pruning"] = prune_results
+            try:
+                prune_results = pruner.evaluate_pruning(
+                    original_model=original_model,
+                    pruned_model=optimized_model,
+                    dataloader=dataloader,
+                    device=device
+                )
+                results["pruning"] = prune_results
+            except Exception as e:
+                logger.warning(f"Error evaluating pruning impact: {e}")
+                # Provide basic pruning results without evaluation
+                results["pruning"] = {
+                    "sparsity": pruner.get_model_sparsity(optimized_model)["overall_sparsity"]
+                }
     
     # Apply general inference optimizations
     if "optimize" in optimizations or "trace" in optimizations or "fuse" in optimizations:
