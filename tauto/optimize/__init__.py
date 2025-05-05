@@ -12,10 +12,33 @@ from tauto.optimize.training import (
     train_with_optimization,
 )
 
+from tauto.optimize.inference import (
+    ModelQuantization,
+    ModelPruning,
+    optimize_for_inference,
+    apply_inference_optimizations,
+)
+
+from tauto.optimize.distillation import (
+    KnowledgeDistillation,
+    distill_model,
+)
+
 __all__ = [
+    # Training optimizations
     "MixedPrecisionTraining",
     "GradientAccumulation",
     "ModelCheckpointing",
     "OptimizerFactory",
     "train_with_optimization",
+    
+    # Inference optimizations
+    "ModelQuantization",
+    "ModelPruning",
+    "optimize_for_inference",
+    "apply_inference_optimizations",
+    
+    # Knowledge distillation
+    "KnowledgeDistillation",
+    "distill_model",
 ]
