@@ -24,6 +24,12 @@ from tauto.optimize.distillation import (
     distill_model,
 )
 
+from tauto.optimize.compiler import (
+    TorchCompile,
+    TorchScriptExport,
+    apply_compiler_optimization,
+)
+
 __all__ = [
     # Training optimizations
     "MixedPrecisionTraining",
@@ -41,4 +47,9 @@ __all__ = [
     # Knowledge distillation
     "KnowledgeDistillation",
     "distill_model",
+    
+    # Compiler optimizations
+    "TorchCompile",
+    "TorchScriptExport",
+    "apply_compiler_optimization",
 ]
