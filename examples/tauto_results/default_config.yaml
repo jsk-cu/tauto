@@ -1,0 +1,64 @@
+data:
+  cache_dir: .tauto_cache
+  drop_last: false
+  num_workers: 4
+  persistent_workers: true
+  pin_memory: true
+  prefetch_factor: 2
+  use_cache: true
+logging:
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+  log_file: null
+optimization:
+  distillation:
+    alpha: 0.5
+    enabled: false
+    teacher_model: null
+    temperature: 2.0
+  pruning:
+    enabled: false
+    method: magnitude
+    sparsity: 0.5
+  quantization:
+    approach: post_training
+    enabled: false
+    precision: int8
+  torch_compile:
+    backend: inductor
+    enabled: true
+    mode: max-autotune
+profiling:
+  enabled: true
+  profile_dir: .tauto_profile
+  profile_memory: true
+  record_shapes: true
+  use_cuda: true
+  with_stack: false
+training:
+  batch_size: 32
+  checkpoint_dir: checkpoints
+  checkpoint_interval: 1
+  early_stopping:
+    enabled: true
+    metric: val_loss
+    min_delta: 0.0001
+    mode: min
+    patience: 5
+  epochs: 10
+  grad_accumulation_steps: 1
+  gradient_clip_val: 1.0
+  learning_rate: 0.001
+  mixed_precision: true
+  optimizer: adam
+  scheduler: cosine
+  weight_decay: 0.0001
+wandb:
+  enabled: true
+  entity: null
+  log_artifacts: true
+  log_code: true
+  name: null
+  project: tauto
+  tags:
+  - tauto
