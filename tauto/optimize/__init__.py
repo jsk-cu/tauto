@@ -30,6 +30,13 @@ from tauto.optimize.compiler import (
     apply_compiler_optimization,
 )
 
+from tauto.optimize.hyperparams import (
+    HyperparameterOptimization,
+    create_search_space,
+    optimize_hyperparameters,
+    PruningCallback,
+)
+
 __all__ = [
     # Training optimizations
     "MixedPrecisionTraining",
@@ -52,4 +59,10 @@ __all__ = [
     "TorchCompile",
     "TorchScriptExport",
     "apply_compiler_optimization",
+    
+    # Hyperparameter optimization
+    "HyperparameterOptimization",
+    "create_search_space",
+    "optimize_hyperparameters",
+    "PruningCallback",
 ]
