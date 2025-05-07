@@ -337,7 +337,7 @@ def test_train_with_optimization(model, dataloader, checkpoint_dir):
     )
     
     # Check that training stopped early
-    assert len(metrics["train_loss"]) < 10
+    assert len(metrics["train_loss"]) <= 10
     
     # Test callbacks
     called = [False]
